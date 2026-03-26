@@ -3,6 +3,8 @@ import { raw } from 'hono/html'
 import type { Bindings } from '../types'
 import { getRingOrder, getActiveMembers } from '../data'
 import Layout from '../templates/Layout'
+import { CANADA_VIEWBOX, CANADA_PATH, projectToSvg } from '../lib/canada-map'
+import { getCityCoord } from '../lib/city-coords'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -17,6 +19,17 @@ app.get('/', async (c) => {
   const ring = order.filter((s) => activeSlugs.has(s))
   const first = ring[0]
   const last = ring[ring.length - 1]
+
+  const memberDots = active
+    .map((m) => {
+      const coord = (m.lat != null && m.lng != null)
+        ? { lat: m.lat, lng: m.lng }
+        : (m.city ? getCityCoord(m.city) : null)
+      if (!coord) return null
+      const pos = projectToSvg(coord.lat, coord.lng)
+      return { ...m, svgX: pos.x, svgY: pos.y }
+    })
+    .filter((m): m is NonNullable<typeof m> => m !== null)
 
   return c.html(
     <Layout fullHeight>
@@ -154,6 +167,49 @@ app.get('/', async (c) => {
         @media (prefers-reduced-motion: no-preference) {
           .flag-static { display: none; }
         }
+        .map-container {
+          flex: 1;
+          background: #f0eee9;
+          border-radius: 4px;
+          position: relative;
+          overflow: hidden;
+        }
+        .map-grid {
+          position: absolute;
+          inset: 0;
+          background-image:
+            linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+          background-size: 24px 24px;
+        }
+        .map-svg { width: 100%; height: 100%; }
+        .map-outline { fill: none; stroke: #ddd; stroke-width: 1.5; }
+        .map-dot { fill: #d42c2c; cursor: pointer; }
+        .map-dot:hover { fill: #a11; }
+        .map-glow { fill: rgba(212, 44, 44, 0.12); pointer-events: none; }
+        .map-coord {
+          position: absolute;
+          font-family: 'Space Mono', monospace;
+          font-size: 0.6rem;
+          color: #ccc;
+        }
+        .map-coord-tl { top: 8px; left: 10px; }
+        .map-coord-br { bottom: 8px; right: 10px; }
+        .map-tooltip {
+          position: absolute;
+          background: #1a1a1a;
+          color: #fff;
+          padding: 0.3rem 0.6rem;
+          border-radius: 4px;
+          font-family: 'Space Mono', monospace;
+          font-size: 0.7rem;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.15s;
+          white-space: nowrap;
+          z-index: 10;
+        }
+        .map-tooltip.visible { opacity: 1; }
         @media (prefers-color-scheme: dark) {
           .landing-left { border-right-color: #2a2927; }
           .landing-tagline { color: #777; }
@@ -171,6 +227,15 @@ app.get('/', async (c) => {
           .join-block-text strong { color: #e0ddd8; }
           .join-block-link { color: #f55; }
           .landing-right-placeholder { background: #1a1918; color: #444; }
+          .map-container { background: #1a1918; }
+          .map-grid {
+            background-image:
+              linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+          }
+          .map-outline { stroke: #333; }
+          .map-coord { color: #333; }
+          .map-tooltip { background: #e0ddd8; color: #1a1a1a; }
           .flag-white { background: #f5f5f5; }
         }
         @media (max-width: 767px) {
@@ -234,7 +299,29 @@ app.get('/', async (c) => {
             <canvas class="flag-canvas" id="flag-canvas" />
           </div>
 
-          <div class="landing-right-placeholder">Map (next task)</div>
+          <div class="map-container">
+            <div class="map-grid" />
+            <span class="map-coord map-coord-tl">53.0°N 125.0°W</span>
+            <span class="map-coord map-coord-br">42.0°N 52.0°W</span>
+            <svg class="map-svg" viewBox={CANADA_VIEWBOX} preserveAspectRatio="xMidYMid meet">
+              <path class="map-outline" d={CANADA_PATH} />
+              {memberDots.map((m) => (
+                <>
+                  <circle class="map-glow" cx={m.svgX} cy={m.svgY} r={12} />
+                  <circle
+                    class="map-dot"
+                    cx={m.svgX}
+                    cy={m.svgY}
+                    r={5}
+                    data-name={m.name}
+                    data-city={m.city ?? ''}
+                    data-url={m.url}
+                  />
+                </>
+              ))}
+            </svg>
+            <div class="map-tooltip" id="map-tooltip" />
+          </div>
         </div>
       </div>
       {raw(`<script>(function() {
@@ -360,6 +447,34 @@ app.get('/', async (c) => {
   window.addEventListener('resize', resize);
   requestAnimationFrame(loop);
 })()</script>`)}
+      {raw(`<script>
+(function() {
+  var tooltip = document.getElementById('map-tooltip');
+  var container = document.querySelector('.map-container');
+  if (!tooltip || !container) return;
+  var dots = container.querySelectorAll('.map-dot');
+  dots.forEach(function(dot) {
+    dot.addEventListener('mouseenter', function(e) {
+      var name = dot.getAttribute('data-name');
+      var city = dot.getAttribute('data-city');
+      tooltip.textContent = name + (city ? ' \\u00b7 ' + city : '');
+      tooltip.classList.add('visible');
+    });
+    dot.addEventListener('mousemove', function(e) {
+      var rect = container.getBoundingClientRect();
+      tooltip.style.left = (e.clientX - rect.left + 12) + 'px';
+      tooltip.style.top = (e.clientY - rect.top - 30) + 'px';
+    });
+    dot.addEventListener('mouseleave', function() {
+      tooltip.classList.remove('visible');
+    });
+    dot.addEventListener('click', function() {
+      var url = dot.getAttribute('data-url');
+      if (url) window.open(url, '_blank', 'noopener');
+    });
+  });
+})();
+</script>`)}
     </Layout>
   )
 })
