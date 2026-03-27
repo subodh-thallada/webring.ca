@@ -17,7 +17,8 @@ export async function runHealthCheck(kv: KVNamespace): Promise<void> {
           headers: { 'User-Agent': 'webring.ca health check' },
         })
         const body = await res.text()
-        const hasWidget = body.toLowerCase().includes('webring.ca')
+        const lower = body.toLowerCase()
+        const hasWidget = lower.includes('data-webring="ca"') || lower.includes('webring.ca/embed.js')
 
         if (res.ok && hasWidget) {
           return {

@@ -38,7 +38,13 @@ try {
 
 let baseMembers: NewMemberInput[] = []
 try {
-  const base = execSync('git show main:members.json', { encoding: 'utf-8' })
+  const ref = process.env.GITHUB_BASE_REF
+    ? `origin/${process.env.GITHUB_BASE_REF}`
+    : 'main'
+  const base = execSync(`git show ${ref}:members.json`, {
+    encoding: 'utf-8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+  })
   baseMembers = JSON.parse(base)
 } catch {
   // No base — first time, all members are new
@@ -67,6 +73,8 @@ for (const m of baseMembers) {
   allUrls.add(m.url)
 }
 
+write(`## Webring Validation\n`)
+
 for (const member of newMembers) {
   const results: string[] = []
   let memberFailed = false
@@ -74,8 +82,7 @@ for (const member of newMembers) {
   const safeName = sanitizeMarkdown(member.name ?? '')
   const safeUrl = sanitizeMarkdown(member.url ?? '')
 
-  write(`## Webring Validation\n`)
-  write(`**New member:** ${safeName} (${safeUrl})\n`)
+  write(`### ${safeName} (${safeUrl})\n`)
 
   if (!member.slug || !member.name || !member.url || !member.type) {
     results.push('Missing required fields (slug, name, url, type)')
@@ -125,7 +132,8 @@ for (const member of newMembers) {
       results.push(`Site reachable (HTTP ${res.status})`)
 
       const body = await res.text()
-      if (!body.toLowerCase().includes('webring.ca')) {
+      const lower = body.toLowerCase()
+      if (!lower.includes('data-webring="ca"') && !lower.includes('webring.ca/embed.js')) {
         results.push('Widget not detected yet — add the widget after merge')
       }
     } else {

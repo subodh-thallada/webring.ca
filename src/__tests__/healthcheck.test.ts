@@ -34,7 +34,7 @@ describe('runHealthCheck', () => {
   it('marks members as ok when site is reachable with widget', async () => {
     const kv = createMockKV({ members: JSON.stringify([alice]) })
     mockFetch({
-      'https://alice.example.com': { ok: true, status: 200, body: '<a href="https://webring.ca">webring</a>' },
+      'https://alice.example.com': { ok: true, status: 200, body: '<div data-webring="ca" data-member="alice"></div><script src="https://webring.ca/embed.js"></script>' },
     })
 
     await runHealthCheck(kv)
@@ -114,7 +114,7 @@ describe('runHealthCheck', () => {
     const inactiveAlice = { ...alice, active: false }
     const kv = createMockKV({ members: JSON.stringify([inactiveAlice]) })
     mockFetch({
-      'https://alice.example.com': { ok: true, status: 200, body: 'webring.ca widget' },
+      'https://alice.example.com': { ok: true, status: 200, body: '<script src="https://webring.ca/embed.js"></script>' },
     })
 
     await runHealthCheck(kv)
@@ -127,7 +127,7 @@ describe('runHealthCheck', () => {
   it('does not update members if no status changes', async () => {
     const kv = createMockKV({ members: JSON.stringify([alice]) })
     mockFetch({
-      'https://alice.example.com': { ok: true, status: 200, body: 'webring.ca' },
+      'https://alice.example.com': { ok: true, status: 200, body: '<div data-webring="ca"></div>' },
     })
     const putSpy = vi.spyOn(kv, 'put')
 
@@ -140,8 +140,8 @@ describe('runHealthCheck', () => {
   it('handles multiple members in parallel', async () => {
     const kv = createMockKV({ members: JSON.stringify([alice, bob]) })
     mockFetch({
-      'https://alice.example.com': { ok: true, status: 200, body: 'webring.ca' },
-      'https://bob.example.com': { ok: true, status: 200, body: 'webring.ca' },
+      'https://alice.example.com': { ok: true, status: 200, body: '<div data-webring="ca"></div>' },
+      'https://bob.example.com': { ok: true, status: 200, body: '<script src="https://webring.ca/embed.js"></script>' },
     })
 
     await runHealthCheck(kv)
