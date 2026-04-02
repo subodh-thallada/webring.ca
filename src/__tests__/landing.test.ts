@@ -113,4 +113,16 @@ describe('landing route', () => {
     expect(html).toContain('id="tab-panel-discover"')
     expect(html).toContain('__discoverMembers')
   })
+
+  it('renders splash section above main content', async () => {
+    const app = await makeApp()
+    const res = await app.request('/', {}, { WEBRING: kv })
+    const html = await res.text()
+
+    expect(html).toContain('class="splash"')
+    expect(html).toContain('class="splash-title"')
+    const splashIdx = html.indexOf('class="splash"')
+    const landingIdx = html.indexOf('class="landing"')
+    expect(splashIdx).toBeLessThan(landingIdx)
+  })
 })

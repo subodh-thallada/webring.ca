@@ -14,6 +14,107 @@ app.get('/', async (c) => {
   return c.html(
     <Layout fullHeight hideChrome>
       {raw(`<style>
+        /* ── Splash hero ── */
+        .splash {
+          position: relative;
+          width: 100%;
+          height: 100vh;
+          overflow: hidden;
+          background: #0a0a2e;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .splash-layer {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+        }
+        .splash-canvas {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+        }
+        .splash-title {
+          position: relative;
+          z-index: 3;
+          text-align: center;
+          color: #fff;
+        }
+        .splash-title h1 {
+          font-size: 4.5rem;
+          font-weight: 800;
+          letter-spacing: -0.03em;
+          line-height: 1;
+          margin-bottom: 0.5rem;
+          color: #fff;
+        }
+        .splash-title p {
+          font-size: 1.1rem;
+          font-weight: 400;
+          color: rgba(255,255,255,0.5);
+          letter-spacing: 0.05em;
+          margin-bottom: 0;
+        }
+        .splash-label {
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          letter-spacing: 0.15em;
+          color: rgba(255,255,255,0.4);
+          margin-bottom: 1rem;
+        }
+        .splash-flag {
+          height: 1.8rem;
+          width: auto;
+          margin-bottom: 1.5rem;
+          animation: flag-wave 3s ease-in-out infinite;
+        }
+        @keyframes flag-wave {
+          0%, 100% { transform: rotate(-2deg); }
+          50% { transform: rotate(2deg); }
+        }
+        .splash-scroll {
+          position: absolute;
+          bottom: 2rem;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 3;
+          color: rgba(255,255,255,0.3);
+          font-size: 0.75rem;
+          letter-spacing: 0.05em;
+          animation: scroll-hint 2s ease-in-out infinite;
+        }
+        @keyframes scroll-hint {
+          0%, 100% { opacity: 0.3; transform: translateX(-50%) translateY(0); }
+          50% { opacity: 0.6; transform: translateX(-50%) translateY(6px); }
+        }
+        .splash-fallback-bg {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, #0a0a2e, #061a12, #0a2818, #1a0a3e);
+          background-size: 400% 400%;
+          animation: aurora-fallback 12s ease infinite;
+          z-index: 0;
+        }
+        @keyframes aurora-fallback {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .landing-wrap {
+          position: relative;
+          min-height: 100vh;
+          z-index: 1;
+          background: var(--bg);
+        }
+        @media (max-width: 767px) {
+          .splash-title h1 { font-size: 2.8rem; }
+          .splash-title p { font-size: 0.95rem; }
+          .splash-flag { height: 1.4rem; }
+        }
+
         .landing {
           display: flex;
           flex: 1;
@@ -327,6 +428,22 @@ app.get('/', async (c) => {
           .discover-visit { font-size: 0.8rem; padding: 0.5rem 1.4rem; }
         }
       </style>`)}
+      <section class="splash" id="splash">
+        <div class="splash-fallback-bg"></div>
+        <canvas class="splash-canvas" id="aurora-canvas"></canvas>
+        <div class="splash-layer" id="splash-layer-1" data-depth="0.01"></div>
+        <div class="splash-layer" id="splash-layer-2" data-depth="0.02"></div>
+        <div class="splash-title" data-depth="0.03">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/d/d9/Flag_of_Canada_%28Pantone%29.svg" alt="Flag of Canada" class="splash-flag" />
+          <div class="splash-label">A Canadian Webring</div>
+          <h1>webring.ca</h1>
+          <p>Builders. Designers. Creators.</p>
+        </div>
+        <div class="splash-layer" id="splash-layer-4" data-depth="0.05"></div>
+        <canvas class="splash-canvas" id="particle-canvas" style="z-index:5;"></canvas>
+        <div class="splash-scroll">{raw('&darr;')}</div>
+      </section>
+      <div class="landing-wrap">
       <div class="landing">
         {raw(`<button class="landing-theme-toggle" onclick="__toggleTheme()" aria-label="Toggle theme"><svg class="theme-icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><svg class="theme-icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button>`)}
         <div class="landing-left" id="landing-left">
@@ -414,6 +531,7 @@ app.get('/', async (c) => {
             </div>
           </div>
         </div>
+      </div>
       </div>
       {raw(`<script>var __discoverMembers = ${JSON.stringify(active.map(m => ({ slug: m.slug, name: m.name, url: m.url, city: m.city ?? '', type: m.type })))};</script>`)}
       {raw(`<script>

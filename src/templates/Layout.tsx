@@ -131,14 +131,15 @@ const Layout: FC<PropsWithChildren<{ title?: string; fullHeight?: boolean; hideC
             pre code { background: none; padding: 0; }
             ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
             li { margin-bottom: 0.25rem; }
-            .full-height { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+            .full-height { min-height: 100vh; display: flex; flex-direction: column; }
             .full-height .container { flex: 1; display: flex; flex-direction: column; min-height: 0; }
             .full-height main { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0; }
             @media (max-width: 767px) {
-              .full-height { height: auto; overflow: auto; }
+              .full-height { min-height: auto; }
             }
           `)}</style>
           <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
+          <script src="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.min.js" async></script>
         </head>
         <body class={fullHeight ? 'full-height' : ''}>
           <div class="container">
