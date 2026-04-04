@@ -45,7 +45,7 @@ function SplashContent({ active }: { active: Member[] }) {
             <h2 class="poster-text hero-bottom-text">
               {raw('<span class="flag-red">CA</span><span class="flag-white-outline">NA</span><span class="flag-red">DA</span>')}
             </h2>
-            <img src="https://upload.wikimedia.org/wikipedia/commons/d/d9/Flag_of_Canada_%28Pantone%29.svg" alt="Flag of Canada" class="canada-flag" />
+            <img src="/canada-flag.svg" alt="Flag of Canada" class="canada-flag" />
           </div>
         </div>
       </footer>
@@ -57,7 +57,7 @@ function generateArcPath(x1: number, y1: number, x2: number, y2: number): string
   const dx = x2 - x1
   const dy = y2 - y1
   const dist = Math.sqrt(dx * dx + dy * dy)
-  // Arc curvature proportional to distance
+  if (dist === 0) return `M${x1},${y1} L${x2},${y2}`
   const sweep = dist * 0.3
   const mx = (x1 + x2) / 2 - (dy / dist) * sweep
   const my = (y1 + y2) / 2 + (dx / dist) * sweep
@@ -168,15 +168,15 @@ function RingStatsContent({ active }: { active: Member[] }) {
         {/* Stats */}
         <div class="ringstats-stats">
           <div class="ringstats-stat">
-            <span class="ringstats-stat-number" data-count={active.length}>{active.length}</span>
+            <span class="ringstats-stat-number">{active.length}</span>
             <span class="ringstats-stat-label">Members</span>
           </div>
           <div class="ringstats-stat">
-            <span class="ringstats-stat-number" data-count={uniqueCities}>{uniqueCities}</span>
+            <span class="ringstats-stat-number">{uniqueCities}</span>
             <span class="ringstats-stat-label">Cities</span>
           </div>
           <div class="ringstats-stat">
-            <span class="ringstats-stat-number" data-count={uniqueTypes}>{uniqueTypes}</span>
+            <span class="ringstats-stat-number">{uniqueTypes}</span>
             <span class="ringstats-stat-label">Disciplines</span>
           </div>
           <div class="ringstats-stat">
@@ -502,6 +502,8 @@ app.get('/', async (c) => {
             .map-member {
               opacity: 0;
               animation: dot-appear 0.5s ease-out forwards;
+              transform-box: fill-box;
+              transform-origin: center;
             }
 
             @keyframes dot-appear {
@@ -700,6 +702,8 @@ app.get('/', async (c) => {
             .ringstats-node {
               opacity: 0;
               animation: dot-appear 0.5s ease-out forwards;
+              transform-box: fill-box;
+              transform-origin: center;
             }
 
             .ringstats-node-bg {
@@ -1060,11 +1064,9 @@ app.get('/', async (c) => {
   });
 
   // ── Animation loop ──
-  let running = true;
+  let rafId = 0;
 
   function tick() {
-    if (!running) { requestAnimationFrame(tick); return; }
-
     // Cycle: wrap target and current together
     const realStart = CLONE_BEFORE * panelW;
     const realEnd = realStart + PANEL_COUNT * panelW;
@@ -1096,14 +1098,18 @@ app.get('/', async (c) => {
       dot.classList.toggle('is-active', i === activeIdx);
     });
 
-    requestAnimationFrame(tick);
+    rafId = requestAnimationFrame(tick);
   }
 
-  requestAnimationFrame(tick);
+  rafId = requestAnimationFrame(tick);
 
   // ── Pause when tab hidden ──
   document.addEventListener('visibilitychange', () => {
-    running = !document.hidden;
+    if (document.hidden) {
+      cancelAnimationFrame(rafId);
+    } else {
+      rafId = requestAnimationFrame(tick);
+    }
   });
 
   // ── Resize handler ──
