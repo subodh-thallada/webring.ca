@@ -9,11 +9,8 @@ interface MemberInput {
   name: string
   url: string
   city?: string
-  type: string
   active?: boolean
 }
-
-const VALID_TYPES = ['developer', 'designer', 'founder', 'other']
 
 function sanitize(text: string): string {
   return text.replace(/[[\](){}*_~`#>!|\\]/g, '\\$&')
@@ -62,7 +59,7 @@ for (const member of members) {
   const prev = baseBySlug.get(member.slug)
   if (!prev) continue
   const changed: string[] = []
-  for (const key of ['name', 'url', 'city', 'type', 'active'] as const) {
+  for (const key of ['name', 'url', 'city', 'active'] as const) {
     if (member[key] !== prev[key]) changed.push(key)
   }
   if (changed.length > 0) {
@@ -123,11 +120,6 @@ for (const { current, base, changedFields } of editedMembers) {
     memberFailed = true
   }
 
-  if (changedFields.includes('type') && !VALID_TYPES.includes(current.type)) {
-    write(`- FAIL: type "${sanitize(current.type)}" is not valid. Must be one of: ${VALID_TYPES.join(', ')}`)
-    memberFailed = true
-  }
-
   if (changedFields.includes('slug') && !/^[a-z0-9-]+$/.test(current.slug)) {
     write(`- FAIL: slug "${sanitize(current.slug)}" must be lowercase alphanumeric and hyphens only`)
     memberFailed = true
@@ -185,11 +177,11 @@ for (const member of newMembers) {
 
   write('**Schema**')
 
-  if (!member.slug || !member.name || !member.url || !member.type) {
-    write('- FAIL: Missing required fields. Every entry needs slug, name, url, and type.')
+  if (!member.slug || !member.name || !member.url) {
+    write('- FAIL: Missing required fields. Every entry needs slug, name, and url.')
     memberFailed = true
   } else {
-    write('- PASS: All required fields present (slug, name, url, type)')
+    write('- PASS: All required fields present (slug, name, url)')
   }
 
   if (member.slug && !/^[a-z0-9-]+$/.test(member.slug)) {
@@ -204,13 +196,6 @@ for (const member of newMembers) {
     memberFailed = true
   } else if (member.url) {
     write('- PASS: URL uses HTTPS')
-  }
-
-  if (member.type && !VALID_TYPES.includes(member.type)) {
-    write(`- FAIL: type "${sanitize(member.type)}" is not valid. Must be one of: ${VALID_TYPES.join(', ')}`)
-    memberFailed = true
-  } else if (member.type) {
-    write(`- PASS: type "${sanitize(member.type)}" is valid`)
   }
 
   if (member.slug && allSlugs.has(member.slug)) {
