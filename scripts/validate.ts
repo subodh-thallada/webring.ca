@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { resolve, join, basename } from 'node:path'
-import { detectWidget } from '../src/utils/widget'
+import { detectWidget, extractScriptUrls, detectWidgetInBundle } from '../src/utils/widget'
 import { hasResolvableMemberCoordinates } from '../src/utils/member-coords'
 
 interface MemberInput {
@@ -20,6 +20,27 @@ function sanitize(text: string): string {
 
 function write(text: string): void {
   process.stdout.write(text + '\n')
+}
+
+async function checkWidget(body: string, url: string, slug: string): Promise<'html' | 'bundle' | false> {
+  if (detectWidget(body, slug)) return 'html'
+
+  const scriptUrls = extractScriptUrls(body, url)
+  for (const scriptUrl of scriptUrls) {
+    try {
+      const jsRes = await fetch(scriptUrl, {
+        signal: AbortSignal.timeout(5000),
+        headers: { 'User-Agent': 'webring.ca validator' },
+      })
+      if (!jsRes.ok) continue
+      const js = await jsRes.text()
+      if (detectWidgetInBundle(js, slug)) return 'bundle'
+    } catch {
+      // Individual script fetch failed, skip
+    }
+  }
+
+  return false
 }
 
 // ── Load current members from members/ directory ──
@@ -149,8 +170,11 @@ for (const { current, base, changedFields } of editedMembers) {
           write(`- PASS: ${safeUrl} responded with HTTP ${res.status}`)
 
           const body = await res.text()
-          if (detectWidget(body, current.slug)) {
+          const widgetResult = await checkWidget(body, current.url, current.slug)
+          if (widgetResult === 'html') {
             write('- PASS: Webring widget detected')
+          } else if (widgetResult === 'bundle') {
+            write('- PASS: Webring widget detected in JS bundle')
           } else {
             write(`- FAIL: Widget not detected on new URL. Make sure data-member="${sanitize(current.slug)}" matches your filename. See https://github.com/stanleypangg/webring.ca#add-the-widget`)
             memberFailed = true
@@ -240,8 +264,11 @@ for (const member of newMembers) {
       write(`- PASS: ${safeUrl} responded with HTTP ${res.status}`)
 
       const body = await res.text()
-      if (detectWidget(body, member.slug)) {
+      const widgetResult = await checkWidget(body, member.url, member.slug)
+      if (widgetResult === 'html') {
         write('- PASS: Webring widget detected')
+      } else if (widgetResult === 'bundle') {
+        write('- PASS: Webring widget detected in JS bundle')
       } else {
         write(`- FAIL: Widget not detected. Make sure data-member="${sanitize(member.slug)}" matches your filename. See https://github.com/stanleypangg/webring.ca#add-the-widget`)
         memberFailed = true
